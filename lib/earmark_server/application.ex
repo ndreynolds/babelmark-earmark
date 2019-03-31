@@ -8,7 +8,7 @@ defmodule EarmarkServer.Application do
       Plug.Cowboy.child_spec(
         scheme: :http,
         plug: EarmarkServer.Router,
-        options: [port: 4001]
+        options: [port: port()]
       )
     ]
 
@@ -18,5 +18,12 @@ defmodule EarmarkServer.Application do
     ]
 
     Supervisor.start_link(children, opts)
+  end
+
+  defp port do
+    case System.get_env("PORT") do
+      nil -> 4000
+      raw -> raw |> Integer.parse() |> elem(0)
+    end
   end
 end
