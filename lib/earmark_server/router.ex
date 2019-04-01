@@ -8,41 +8,50 @@ defmodule EarmarkServer.Router do
   get "/render" do
     conn = Plug.Conn.fetch_query_params(conn)
 
-    case conn.query_params do
+    case conn.params do
       %{"text" => markdown} ->
-        send_resp(
-          conn,
-          200,
-          Jason.encode!(render(markdown))
-        )
+        send_json_resp(conn, 200, babelmark_payload(markdown))
 
       _ ->
-        send_resp(
+        send_json_resp(
           conn,
           422,
-          Jason.encode!(%{
-            errors: ["Missing 'text' param"]
-          })
+          error_payload(422, "Missing 'text' param")
         )
     end
   end
 
   match _ do
-    send_resp(conn, 404, "Not Found")
+    send_json_resp(
+      conn,
+      404,
+      error_payload(404, "Not Found")
+    )
   end
 
-  defp render(markdown) when is_binary(markdown) do
-    {html, errors} =
+  defp babelmark_payload(markdown) when is_binary(markdown) do
+    rendered_html =
       case Earmark.as_html(markdown) do
-        {:ok, html, []} -> {html, []}
-        {:error, html, errors} -> {html, errors}
+        {:ok, html, []} -> html
+        {:error, html, _errors} -> html
       end
 
     %{
       name: "Earmark",
       version: to_string(Earmark.version()),
-      html: html,
-      errors: errors
+      html: rendered_html
     }
+  end
+
+  defp error_payload(code, message) do
+    %{
+      error: %{code: code, message: message}
+    }
+  end
+
+  defp send_json_resp(conn, status, payload) do
+    conn
+    |> put_resp_header("content-type", "application/json")
+    |> send_resp(status, Jason.encode!(payload))
   end
 end
